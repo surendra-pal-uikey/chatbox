@@ -3,6 +3,7 @@ import ChatListComponent from '../chatlist/chatlist';
 import { Button, withStyles } from '@material-ui/core';
 import styles from './styles';
 import ChatViewComponent from '../chatview/chatView';
+import ChatTextBoxComponent from '../chattextbox/chatTextBox';
 
 const firebase = require('firebase');
 
@@ -31,10 +32,20 @@ class DashboardComponent extends React.Component{
                     userEmail={this.state.email}
                     selectedChatIndex={this.state.selectedChat}
                     ></ChatListComponent>
-                <ChatViewComponent
-                    user={this.state.email}
-                    chat={this.state.chats[this.state.selectedChat]}
-                    ></ChatViewComponent>    
+                {
+                    this.state.newChatFormVisible ? 
+                    null :
+                    <ChatViewComponent
+                        user={this.state.email}
+                        chat={this.state.chats[this.state.selectedChat]}
+                        ></ChatViewComponent> 
+                }
+                {
+                    this.state.selectedChat !== null && !this.state.newChatFormVisible ?
+                    <ChatTextBoxComponent submitMessageFn={this.submitMessage}></ChatTextBoxComponent> :
+                    null
+                }
+                  
                 <Button className={classes.signOutBtn} onClick={this.signOut}>Sign Out</Button>
             </div> 
         )
@@ -46,6 +57,36 @@ class DashboardComponent extends React.Component{
         this.setState({
             selectedChat: chatIndex
         })
+    }
+
+    submitMessage = (msg) => {
+        const docKey = this.buildDocKey( 
+            this.state.chats[this.state.selectedChat].users.filter(_user => _user !== this.state.email)[0]
+        );
+        
+        console.log( docKey );
+        
+        firebase
+            .firestore()
+            .collection('chats')
+            .doc(docKey)
+            .update({
+                messages: firebase.firestore.FieldValue.arrayUnion({
+                    sender: this.state.email,
+                    message: msg,
+                    timestamp: Date.now()
+                }),
+                receiverHasRead: false
+            });
+
+    }
+
+    buildDocKey = (friend) => {
+        if( this.state.email > friend ){
+            return this.state.email + ':' + friend;
+        } else {
+            return friend + ':' + this.state.email;
+        }
     }
 
     newChatBtnClicked = () => this.setState( {newChatFormVisible: true, selectedChat: null} );
